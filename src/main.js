@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
-const { loadConfig, saveConfig } = require('./config');
+const { loadConfig, saveConfig, cachedUsage, isCacheFresh } = require('./config');
 const { parseEvent } = require('./events');
 const { stageIndex } = require('./evolution');
 const { fetchClaudeUsage } = require('./usage/claude');
@@ -37,9 +37,12 @@ let claudeBackoffUntil = 0; // usage API가 429를 주면 retry-after까지 조�
 
 // 성공 조회값을 config에 캐시 — 재시작 직후 백오프여도 펫이 바로 보이게
 function persistUsage(u) {
-  cfg.lastUsage = u;
+  // 소스별로 나눠 담아야 소스를 오가도 서로의 값을 덮어쓰지 않는다
+  cfg.usageCache[cfg.source] = { usage: u, at: Date.now() };
   saveConfig(configFile(), cfg);
 }
+
+const pollIntervalMs = () => (cfg.pollIntervalMin || 5) * 60 * 1000;
 
 async function poll() {
   try {
@@ -86,6 +89,7 @@ function panelData() {
       stageIdx: idx,
       stageCount: m.stages.length,
       nextThreshold: m.thresholds[idx] ?? null,
+      gif: m.stages[idx].gif, // 패널 링 한가운데에 현재 단계 스프라이트를 띄움
     } : null,
   };
 }
@@ -210,9 +214,11 @@ function watchEvents() {
 app.whenReady().then(() => {
   if (app.dock) app.dock.hide();
   cfg = loadConfig(configFile());
-  if (cfg.lastUsage && cfg.lastUsage.weekly) {
-    lastUsage = cfg.lastUsage;
-    lastPercent = cfg.lastUsage.weekly.pct; // 첫 폴링 전/백오프 중에도 마지막 값으로 표시
+  // 캐시가 지금 소스의 값일 때만 복원 (다른 소스 값이면 첫 폴링 때까지 비워둔다)
+  const cached = cachedUsage(cfg);
+  if (cached) {
+    lastUsage = cached;
+    lastPercent = cached.weekly.pct; // 첫 폴링 전/백오프 중에도 마지막 값으로 표시
   }
   tray = new Tray(nativeImage.createEmpty());
   tray.setTitle(' …');
@@ -229,7 +235,7 @@ app.whenReady().then(() => {
   createBubbleWindow();
   watchEvents();
   poll();
-  setInterval(poll, (cfg.pollIntervalMin || 5) * 60 * 1000);
+  setInterval(poll, pollIntervalMs());
 });
 
 ipcMain.on('get-config-path', (e) => { e.returnValue = configFile(); });
@@ -241,14 +247,26 @@ ipcMain.on('panel-resize', (_, h) => {
   panelWin.setBounds({ x, y, width: PANEL_W, height: h });
 });
 ipcMain.on('config-changed', () => {
+  const prevSource = cfg.source;
   cfg = loadConfig(configFile());
   if (petWin && !petWin.isDestroyed()) {
     const [x, y] = petWin.getPosition();
     petWin.setBounds({ x, y, width: petWinW(), height: petWinH() });
   }
+  // 소스를 바꾸면 이전 소스의 수치를 그대로 두지 않고 새 소스의 캐시로 갈아끼운다.
+  // 캐시가 없으면 비워두고, 폴링 주기가 지난 값이면 뒤이어 다시 조회한다.
+  const sourceChanged = cfg.source !== prevSource;
+  if (sourceChanged) {
+    const cached = cachedUsage(cfg);
+    lastUsage = cached;
+    lastPercent = cached ? cached.weekly.pct : null;
+    lastError = false;
+  }
   updateTray();
   pushState();
   pushPanel();
+  // 오갈 때마다 조회하면 호출 제한에 걸리므로, 최근에 받아둔 값이 있으면 건너뛴다
+  if (sourceChanged && !isCacheFresh(cfg, cfg.source, pollIntervalMs())) poll();
 });
 ipcMain.on('tray-icon', (_, dataUrl) => {
   if (!tray) return;
