@@ -5,9 +5,10 @@
     --bg: rgba(24, 24, 27, .96);
     --card-line: rgba(255, 255, 255, .09);
     --hairline: rgba(255, 255, 255, .07);
-    --text: #ececf0;
-    --muted: #8e8e96;
-    --faint: #626269;
+    --text: #ececf0;             /* 13.6:1 */
+    --text-2: #b4b4bc;           /* 7.8:1 — 남은 시간 */
+    --muted: #8e8e96;            /* 4.9:1 — 라벨, 절대 시각 */
+    --faint: #82828b;            /* 4.65:1 — 설정 힌트 (기존 #626269는 2.9:1로 AA 미달) */
     --field: rgba(255, 255, 255, .06);
     --field-line: rgba(255, 255, 255, .12);
     --mono: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -55,7 +56,7 @@
     border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 9px 10px; }
   .duo .k { font-size: 10.5px; color: var(--muted); font-weight: 600; letter-spacing: .4px; }
   .duo .v { font: 600 17px var(--mono); font-variant-numeric: tabular-nums; margin: 1px 0 2px; }
-  .duo .r { font-size: 10px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .duo .r { font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 
   .btns { display: flex; gap: 7px; margin-top: 14px; }
   button { flex: 1; background: var(--field); color: var(--text);
