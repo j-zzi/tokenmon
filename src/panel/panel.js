@@ -1,15 +1,13 @@
 // settings.js와 같은 전역을 공유하므로 IIFE로 격리 (const 재선언 충돌 방지)
 (() => {
   const { ipcRenderer } = require('electron');
+  const { fmtRemaining, fmtAbsolute } = require('./format');
 
   const q = (id) => document.getElementById(id);
 
   // 링 둘레 (r=66 바깥=주간, r=53 안쪽=5시간)
   const C_WK = 2 * Math.PI * 66;
   const C_FH = 2 * Math.PI * 53;
-
-  const fmtTime = (ms) => new Date(ms).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
-  const fmtDate = (ms) => { const d = new Date(ms); return `${d.getMonth() + 1}/${d.getDate()}`; };
 
   // 70%/90%를 넘으면 링 색으로 경고 (빈 문자열이면 CSS 기본색으로 되돌아감)
   const alertColor = (pct) => (pct >= 90 ? '#ff5f57' : pct >= 70 ? '#ffb340' : '');
@@ -20,6 +18,19 @@
     el.setAttribute('stroke-dasharray',
       `${(has ? Math.min(100, pct) : 0) / 100 * circumference} ${circumference}`);
     el.style.stroke = has ? alertColor(pct) : '';
+  }
+
+  // 폴링은 5분 주기인데 패널은 설정을 펼쳐두면 계속 떠 있다.
+  // 남은 시간을 30초마다 다시 그리려면 마지막 수치를 들고 있어야 한다.
+  let last = { fh: null, wk: null };
+
+  function renderReset() {
+    const now = Date.now();
+    for (const [prefix, u] of [['fh', last.fh], ['wk', last.wk]]) {
+      const on = typeof u?.pct === 'number' && u.resetsAt;
+      q(`${prefix}-remain`).textContent = on ? fmtRemaining(u.resetsAt, now) : '';
+      q(`${prefix}-at`).textContent = on ? fmtAbsolute(u.resetsAt, now) : '';
+    }
   }
 
   ipcRenderer.on('panel-data', (_, d) => {
@@ -33,13 +44,15 @@
     setRing('ring-wk', wk?.pct, C_WK);
     setRing('ring-fh', fh?.pct, C_FH);
 
-    const put = (prefix, u, fmt) => {
-      const has = typeof u?.pct === 'number';
-      q(`${prefix}-pct`).textContent = has ? `${Math.round(u.pct)}%` : '—';
-      q(`${prefix}-reset`).textContent = has && u.resetsAt ? `${fmt(u.resetsAt)} 리셋` : '';
+    const put = (prefix, u) => {
+      q(`${prefix}-pct`).textContent =
+        typeof u?.pct === 'number' ? `${Math.round(u.pct)}%` : '—';
     };
-    put('fh', fh, fmtTime);
-    put('wk', wk, fmtDate);
+    put('fh', fh);
+    put('wk', wk);
+
+    last = { fh, wk };
+    renderReset();
 
     const sprite = q('mon-sprite');
     const egg = q('mon-egg');
@@ -82,6 +95,8 @@
 
   // 알 클릭/트레이 메뉴에서 설정을 바로 펼친 상태로 열기
   ipcRenderer.on('expand-settings', () => { if (sec.hidden) q('settings').onclick(); });
+
+  setInterval(renderReset, 30_000);
 
   q('refresh').onclick = () => ipcRenderer.send('panel-refresh');
   q('quit').onclick = () => ipcRenderer.send('panel-quit');
