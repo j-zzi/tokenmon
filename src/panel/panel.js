@@ -44,9 +44,14 @@
     setRing('ring-wk', wk?.pct, C_WK);
     setRing('ring-fh', fh?.pct, C_FH);
 
+    // 링과 같은 경고색을 값과 라벨 dot에도 (빈 문자열이면 CSS 기본색으로 되돌아감)
     const put = (prefix, u) => {
-      q(`${prefix}-pct`).textContent =
-        typeof u?.pct === 'number' ? `${Math.round(u.pct)}%` : '—';
+      const has = typeof u?.pct === 'number';
+      const color = has ? alertColor(u.pct) : '';
+      const v = q(`${prefix}-pct`);
+      v.textContent = has ? `${Math.round(u.pct)}%` : '—';
+      v.style.color = color;
+      q(`dot-${prefix}`).style.background = color;
     };
     put('fh', fh);
     put('wk', wk);
