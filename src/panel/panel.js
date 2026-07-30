@@ -40,8 +40,6 @@
     };
     put('fh', fh, fmtTime);
     put('wk', wk, fmtDate);
-    q('lg-wk').textContent = `주간 ${typeof wk?.pct === 'number' ? Math.round(wk.pct) + '%' : '—'}`;
-    q('lg-fh').textContent = `5시간 ${typeof fh?.pct === 'number' ? Math.round(fh.pct) + '%' : '—'}`;
 
     const sprite = q('mon-sprite');
     const egg = q('mon-egg');
