@@ -111,7 +111,7 @@ Claude Code 훅과 연결하려면 `~/.claude/settings.json`에 추가하세요:
 
 ```bash
 npm run lint  # ESLint
-npm test      # 테스트 31개
+npm test      # 테스트 56개
 ```
 
 구조와 설계 배경은 [docs/design.md](docs/design.md)에 정리해두었습니다.
