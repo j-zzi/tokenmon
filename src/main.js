@@ -211,6 +211,25 @@ function watchEvents() {
   });
 }
 
+// 체크 상태를 매번 다시 읽어야 하니 열 때마다 새로 만든다
+function buildTrayMenu() {
+  const items = [
+    { label: '설정', click: openPanelSettings },
+    { label: '지금 새로고침', click: poll },
+  ];
+  // 개발 중(electron .)에 켜면 Electron 바이너리가 로그인 항목으로 등록돼 혼란스럽다
+  if (app.isPackaged) {
+    items.push({
+      label: '로그인 시 자동 시작',
+      type: 'checkbox',
+      checked: app.getLoginItemSettings().openAtLogin,
+      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
+    });
+  }
+  items.push({ type: 'separator' }, { label: '종료', role: 'quit' });
+  return Menu.buildFromTemplate(items);
+}
+
 app.whenReady().then(() => {
   if (app.dock) app.dock.hide();
   cfg = loadConfig(configFile());
@@ -222,14 +241,8 @@ app.whenReady().then(() => {
   }
   tray = new Tray(nativeImage.createEmpty());
   tray.setTitle(' …');
-  const menu = Menu.buildFromTemplate([
-    { label: '설정', click: openPanelSettings },
-    { label: '지금 새로고침', click: poll },
-    { type: 'separator' },
-    { label: '종료', role: 'quit' },
-  ]);
   tray.on('click', togglePanel);
-  tray.on('right-click', () => tray.popUpContextMenu(menu));
+  tray.on('right-click', () => tray.popUpContextMenu(buildTrayMenu()));
   createPanelWindow();
   createPetWindow();
   createBubbleWindow();
