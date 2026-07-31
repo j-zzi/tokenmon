@@ -1,4 +1,4 @@
-// toLocaleTimeString이 로컬 타임존에 의존하므로 고정합니다.
+// 시각 포맷이 로컬 타임존에 의존하므로 고정합니다.
 // node --test는 파일마다 별도 프로세스라 다른 테스트에 영향을 주지 않습니다.
 process.env.TZ = 'Asia/Seoul';
 

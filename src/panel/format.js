@@ -16,8 +16,15 @@ function dayDiff(from, to) {
   return Math.round((b.getTime() - a.getTime()) / DAY); // round로 DST 흡수
 }
 
-const time = (ms) =>
-  new Date(ms).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
+// 오전/오후를 직접 붙입니다. CLDR 48부터 Node의 ko 시각 패턴이 AM/PM을 내놓아
+// 같은 코드가 Electron에서는 "오후 3:45", Node에서는 "PM 3:45"가 됐습니다.
+// UI가 전부 한국어이니 런타임 ICU 데이터에 맡기지 않습니다 — WEEKDAY와 같은 이유입니다.
+const time = (ms) => {
+  const d = new Date(ms);
+  const h = d.getHours();
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${mm}`;
+};
 
 function fmtRemaining(resetsAt, now) {
   const d = resetsAt - now;
