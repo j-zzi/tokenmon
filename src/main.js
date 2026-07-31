@@ -2,6 +2,7 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen } = require
 const path = require('node:path');
 const fs = require('node:fs');
 const { loadConfig, saveConfig, cachedUsage, isCacheFresh } = require('./config');
+const { parseEvent } = require('./events');
 const { stageIndex } = require('./evolution');
 const { fetchClaudeUsage } = require('./usage/claude');
 const { fetchCodexUsage } = require('./usage/codex');
@@ -212,11 +213,30 @@ function watchEvents() {
     offset = size;
     for (const line of buf.toString('utf8').split('\n')) {
       if (!line.trim()) continue;
-      let msg;
-      try { msg = JSON.parse(line).message; } catch { msg = line.trim(); }
-      if (msg && petWin && !petWin.isDestroyed()) petWin.webContents.send('notify', String(msg).slice(0, 80));
+      const ev = parseEvent(line);
+      if (ev.type === 'notify' && !ev.message) continue;
+      if (petWin && !petWin.isDestroyed()) petWin.webContents.send('agent-event', ev);
     }
   });
+}
+
+// 체크 상태를 매번 다시 읽어야 하니 열 때마다 새로 만든다
+function buildTrayMenu() {
+  const items = [
+    { label: '설정', click: openPanelSettings },
+    { label: '지금 새로고침', click: poll },
+  ];
+  // 개발 중(electron .)에 켜면 Electron 바이너리가 로그인 항목으로 등록돼 혼란스럽다
+  if (app.isPackaged) {
+    items.push({
+      label: '로그인 시 자동 시작',
+      type: 'checkbox',
+      checked: app.getLoginItemSettings().openAtLogin,
+      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
+    });
+  }
+  items.push({ type: 'separator' }, { label: '종료', role: 'quit' });
+  return Menu.buildFromTemplate(items);
 }
 
 app.whenReady().then(() => {
@@ -230,14 +250,8 @@ app.whenReady().then(() => {
   }
   tray = new Tray(nativeImage.createEmpty());
   tray.setTitle(' …');
-  const menu = Menu.buildFromTemplate([
-    { label: '설정', click: openPanelSettings },
-    { label: '지금 새로고침', click: poll },
-    { type: 'separator' },
-    { label: '종료', role: 'quit' },
-  ]);
   tray.on('click', togglePanel);
-  tray.on('right-click', () => tray.popUpContextMenu(menu));
+  tray.on('right-click', () => tray.popUpContextMenu(buildTrayMenu()));
   createPanelWindow();
   createPetWindow();
   createBubbleWindow();

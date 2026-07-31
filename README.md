@@ -46,19 +46,55 @@ npm start
 
 설정과 캐시는 `~/Library/Application Support/tokenmon/` 에 저장됩니다.
 
-## Claude Code 알림 연동 (선택)
+## Claude Code 에이전트 연동 (선택)
 
-`~/Library/Application Support/tokenmon/events.jsonl`에 `{"message":"..."}` 한 줄이 추가되면 펫이 점프하며 말풍선으로 알려줍니다. Claude Code의 Notification 훅과 연결하려면 `~/.claude/settings.json`에 추가하세요:
+`~/Library/Application Support/tokenmon/events.jsonl`에 한 줄이 추가되면 펫이 반응합니다:
+
+- `{"type":"start","session":"..."}` — 말풍선 "작업 시작!" + 펫 옆 ×N 작업 배지
+- `{"type":"done","session":"..."}` — 몬스터볼이 날아와 펫을 포획(흔들 → 딸깍!)한 뒤 터지며 소환 + "작업 완료!"
+- `{"type":"waiting","message":"...","session":"..."}` — 몬스터볼을 던졌지만 펫이 피하고(놓침!) 스킬 시전 + "답변을 기다리고 있어요!"
+- `{"message":"..."}` — 점프 + 말풍선 알림 (기존 방식)
+
+`session`으로 여러 터미널의 세션을 구분해 작업 중 개수를 ×N 배지로 보여주고,
+`project`(프로젝트 폴더명)를 넣으면 말풍선에 어디서 온 이벤트인지 표시됩니다.
+연출이 겹치면 진행 중인 시퀀스만 재생하고 뒤 이벤트는 말풍선으로 처리하며,
+이벤트 없이 30분 지난 세션은 자동 제거됩니다.
+
+Claude Code 훅과 연결하려면 `~/.claude/settings.json`에 추가하세요:
 
 ```json
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '{type:\"start\", session:.session_id, project:(.cwd // \"\" | split(\"/\") | last // \"\")}' >> \"$HOME/Library/Application Support/tokenmon/events.jsonl\" 2>/dev/null || true",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '{type:\"done\", session:.session_id, project:(.cwd // \"\" | split(\"/\") | last // \"\")}' >> \"$HOME/Library/Application Support/tokenmon/events.jsonl\" 2>/dev/null || true",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "jq -c '{message: .message}' >> \"$HOME/Library/Application Support/tokenmon/events.jsonl\" 2>/dev/null || true",
+            "command": "jq -c '{type:\"waiting\", message:.message, session:.session_id, project:(.cwd // \"\" | split(\"/\") | last // \"\")}' >> \"$HOME/Library/Application Support/tokenmon/events.jsonl\" 2>/dev/null || true",
             "timeout": 5,
             "async": true
           }
@@ -75,7 +111,7 @@ npm start
 
 ```bash
 npm run lint  # ESLint
-npm test      # 테스트 31개
+npm test      # 테스트 56개
 ```
 
 구조와 설계 배경은 [docs/design.md](docs/design.md)에 정리해두었습니다.

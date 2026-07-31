@@ -5,9 +5,10 @@
     --bg: rgba(24, 24, 27, .96);
     --card-line: rgba(255, 255, 255, .09);
     --hairline: rgba(255, 255, 255, .07);
-    --text: #ececf0;
-    --muted: #8e8e96;
-    --faint: #626269;
+    --text: #ececf0;             /* 13.6:1 */
+    --text-2: #b4b4bc;           /* 7.8:1 — 남은 시간 */
+    --muted: #8e8e96;            /* 4.9:1 — 라벨, 절대 시각 */
+    --faint: #82828b;            /* 4.65:1 — 설정 힌트 (기존 #626269는 2.9:1로 AA 미달) */
     --field: rgba(255, 255, 255, .06);
     --field-line: rgba(255, 255, 255, .12);
     --mono: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -48,17 +49,19 @@
   #mon-name { font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
   #mon-stage { font: 11px var(--mono); color: var(--muted); letter-spacing: .06em; }
 
-  .legend { display: flex; gap: 14px; justify-content: center; margin-bottom: 12px; }
-  .legend div { display: flex; align-items: center; gap: 6px;
-    font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .legend .dot { width: 7px; height: 7px; border-radius: 99px; flex: none; }
-
   .duo { display: flex; gap: 10px; }
   .duo > div { flex: 1; background: rgba(255,255,255,.04);
     border: 1px solid rgba(255,255,255,.06); border-radius: 10px; padding: 9px 10px; }
-  .duo .k { font-size: 10.5px; color: var(--muted); font-weight: 600; letter-spacing: .4px; }
-  .duo .v { font: 600 17px var(--mono); font-variant-numeric: tabular-nums; margin: 1px 0 2px; }
-  .duo .r { font-size: 10px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .duo .k { display: flex; align-items: center; gap: 5px;
+    font-size: 10.5px; color: var(--muted); font-weight: 600; letter-spacing: .4px; }
+  /* 링 색 범례 겸용 — 바깥 링(주간) / 안쪽 링(5시간)과 같은 색을 쓴다 */
+  .duo .k .dot { width: 7px; height: 7px; border-radius: 99px; flex: none; }
+  #dot-fh { background: #7ec8ff; }
+  #dot-wk { background: var(--accent); }
+  .duo .v { font: 600 17px var(--mono); font-variant-numeric: tabular-nums; margin: 1px 0 3px;
+    transition: color .3s; }
+  .duo .r { font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .duo .r2 { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 1px; }
 
   .btns { display: flex; gap: 7px; margin-top: 14px; }
   button { flex: 1; background: var(--field); color: var(--text);
@@ -131,13 +134,19 @@
     <div id="mon-name">몬스터 없음</div>
     <div id="mon-stage"></div>
   </div>
-  <div class="legend">
-    <div><span class="dot" style="background:var(--accent)"></span><span id="lg-wk">주간 —</span></div>
-    <div><span class="dot" style="background:#7ec8ff"></span><span id="lg-fh">5시간 —</span></div>
-  </div>
   <div class="duo">
-    <div><div class="k">5시간</div><div class="v" id="fh-pct">—</div><div class="r" id="fh-reset"></div></div>
-    <div><div class="k">주간</div><div class="v" id="wk-pct">—</div><div class="r" id="wk-reset"></div></div>
+    <div>
+      <div class="k"><span class="dot" id="dot-fh"></span>5시간</div>
+      <div class="v" id="fh-pct">—</div>
+      <div class="r" id="fh-remain"></div>
+      <div class="r2" id="fh-at"></div>
+    </div>
+    <div>
+      <div class="k"><span class="dot" id="dot-wk"></span>주간</div>
+      <div class="v" id="wk-pct">—</div>
+      <div class="r" id="wk-remain"></div>
+      <div class="r2" id="wk-at"></div>
+    </div>
   </div>
   <div class="btns">
     <button id="refresh">새로고침</button>
